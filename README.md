@@ -338,3 +338,117 @@ git push
 ```
 
 **Lien du dépôt :** https://github.com/Narjess805/minicv
+
+---
+
+## IV. Première introduction à l'automatisation
+
+### 15. Installation de Vagrant
+
+**Installation via le dépôt officiel HashiCorp :**
+```bash
+wget -O- https://apt.releases.hashicorp.com/gpg | \
+  sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
+
+echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] \
+  https://apt.releases.hashicorp.com $(lsb_release -cs) main" | \
+  sudo tee /etc/apt/sources.list.d/hashicorp.list
+
+sudo apt update
+sudo apt install -y vagrant
+```
+
+**Vérification :**
+```bash
+vagrant --version
+```
+```
+Vagrant 2.4.9
+```
+
+**Installation complémentaire libvirt/QEMU :**
+```bash
+sudo apt install -y qemu-kvm libvirt-daemon-system libvirt-clients \
+  bridge-utils vagrant-libvirt
+sudo systemctl status libvirtd
+```
+
+**Vagrantfile créé :**
+```ruby
+Vagrant.configure("2") do |config|
+  config.vm.box = "generic/ubuntu2204"
+  config.vm.hostname = "vagrant-vm"
+  config.vm.network "private_network", ip: "192.168.121.200"
+
+  config.vm.provider "libvirt" do |lv|
+    lv.memory = 1024
+    lv.cpus = 1
+  end
+end
+```
+
+### ⚠️ Limitation d'environnement
+
+La VM `devsecops-vm` tourne **elle-même dans un environnement virtualisé KVM** :
+
+```bash
+sudo dmesg | grep -i "Hypervisor detected"
+# [0.000000] Hypervisor detected: KVM
+# [0.080963] Booting paravirtualized kernel on KVM
+```
+
+**Le nested KVM n'est pas exposé à cette VM**, ce qui rend impossible la création d'une VM enfant :
+
+| Test | Résultat |
+|---|---|
+| `ls /dev/kvm` | `No such file or directory` |
+| `grep -E "vmx\|svm" /proc/cpuinfo` | Aucun résultat |
+| `sudo modprobe kvm_intel` | Échec (nested non exposé) |
+| `vagrant plugin list` | `No plugins installed` |
+| `vagrant up` | `No usable default provider could be found` |
+
+**Tentative d'exécution :**
+```bash
+vagrant up
+```
+```
+The provider 'libvirt' could not be found, but was requested to
+back the machine 'default'. Please use a provider that exists.
+```
+
+### 16. Connexion via `vagrant ssh` (documentation théorique)
+
+Sur un setup supportant la virtualisation imbriquée, la connexion se ferait ainsi :
+```bash
+vagrant up
+vagrant ssh
+```
+```
+Welcome to Ubuntu 22.04.5 LTS (GNU/Linux 5.15.0-...)
+vagrant@vagrant-vm:~$
+```
+
+**Comparaison création Vagrant vs création manuelle :**
+
+| Critère | Vagrant | Création manuelle |
+|---|---|---|
+| Temps de setup | 1 commande (`vagrant up`) | Étapes GUI multiples |
+| Reproductibilité | ✅ Totale (Vagrantfile versionné) | ❌ Manuelle |
+| Gestion multi-VM | ✅ Native | ❌ Manuelle |
+| Provisioning | ✅ Automatique (shell, Ansible) | ❌ Manuel |
+| Portabilité | ✅ Multi-provider | ❌ Dépend de la plateforme |
+
+### 17. Vagrantfile configuré
+
+**Paramètres configurés :**
+- **Nom de la VM** : `vagrant-vm` (`config.vm.hostname`)
+- **Adresse IP privée** : `192.168.121.200`
+- **Mémoire** : `1024 Mo` (`lv.memory`)
+- **CPUs** : `1` (`lv.cpus`)
+
+**Résultat attendu de `vagrant status` :**
+```
+Current machine states:
+
+default                   not created (libvirt)
+```
