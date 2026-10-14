@@ -212,3 +212,129 @@ git push -u origin main
  * [new branch]      main -> main
 Branch 'main' set up to track remote branch 'main' from 'origin'.
 ```
+
+---
+
+## III. Dockerisation initiale
+
+### 10. Création du Dockerfile
+
+**Fichier `Dockerfile` :**
+```dockerfile
+FROM nginx:alpine
+
+COPY index.html /usr/share/nginx/html/
+COPY style.css /usr/share/nginx/html/
+COPY script.js /usr/share/nginx/html/
+
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]
+```
+
+**Explication :**
+- `FROM nginx:alpine` : image de base légère (~20 Mo)
+- `COPY ...` : copie les 3 fichiers du portfolio dans Nginx
+- `EXPOSE 80` : documente le port exposé
+- `CMD` : lance Nginx au premier plan
+
+![Contenu du Dockerfile](images/dockerfile.png)
+
+---
+
+### 11. Construction de l'image `cv-docker`
+
+**Commande :**
+```bash
+docker build -t cv-docker .
+```
+
+**Résultat :**
+```
+[+] Building 47.0s (9/9) FINISHED
+ => naming to docker.io/library/cv-docker:latest
+```
+
+**Vérification :**
+```bash
+docker images | grep cv-docker
+```
+```
+cv-docker:latest   09700eeedad8   93.6MB   26.3MB
+```
+
+![Build Docker](images/docker-build.png)
+
+---
+
+### 12. Exécution du conteneur
+
+⚠️ Le port 8080 est déjà occupé par Jenkins, on utilise donc **8082**.
+
+**Commande :**
+```bash
+docker run -d -p 8082:80 --name cv-container cv-docker
+```
+
+**Vérification :**
+```bash
+docker ps
+```
+```
+CONTAINER ID   IMAGE       PORTS                    NAMES
+8e287937f3ce   cv-docker   0.0.0.0:8082->80/tcp     cv-container
+```
+
+![Docker run](images/docker-run.png)
+
+**Accès depuis la machine physique :** 👉 http://192.168.56.101:8082
+
+![Portfolio via Docker](images/docker-web-8082.png)
+
+---
+
+### 13. Déploiement avec Docker Compose
+
+**Fichier `docker-compose.yml` :**
+```yaml
+services:
+  portfolio:
+    build: .
+    image: cv-docker
+    container_name: cv-compose
+    ports:
+      - "8083:80"
+    restart: unless-stopped
+```
+
+**Commande :**
+```bash
+docker compose up -d
+```
+
+**Vérification :**
+```bash
+docker compose ps
+```
+```
+NAME         IMAGE       STATUS         PORTS
+cv-compose   cv-docker   Up X seconds   0.0.0.0:8083->80/tcp
+```
+
+![Docker Compose](images/docker-compose.png)
+
+**Accès :** 👉 http://192.168.56.101:8083
+
+![Portfolio via Compose](images/docker-web-8083.png)
+
+---
+
+### 14. Publication sur GitHub
+
+**Commandes Git :**
+```bash
+git add .
+git commit -m "Activité 10-14: Dockerisation du portfolio"
+git push
+```
+
+**Lien du dépôt :** https://github.com/Narjess805/minicv

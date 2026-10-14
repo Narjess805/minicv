@@ -1,0 +1,8 @@
+services:
+  portfolio:
+    build: .
+    image: cv-docker
+    container_name: cv-compose
+    ports:
+      - "8083:80"
+    restart: unless-stopped
